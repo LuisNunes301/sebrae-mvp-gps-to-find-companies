@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GPS Empresas - PWA</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#1a73e8">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --primary: #1a73e8; --border: #dadce0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; }
+        .app-container { display: flex; flex-direction: column; width: 100%; height: 100vh; }
+        .app-header { background: var(--primary); color: white; padding: 12px; z-index: 1000; }
+        .controls-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+        .input-search { padding: 8px; border-radius: 4px; border: none; }
+        .content-area { display: flex; flex: 1; overflow: hidden; }
+        #mapa { flex: 1; height: 100%; }
+        .panel-empresas { width: 350px; overflow-y: auto; background: white; border-left: 1px solid var(--border); }
+        .card { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+        .card:hover { background: #f8f9fa; }
+        .card-title { font-weight: bold; font-size: 14px; }
+        .card-pj { font-size: 11px; background: #eee; display: inline-block; padding: 2px 4px; margin: 4px 0; }
+        .leaflet-popup-content { min-width: 200px; }
+        @media (max-width: 768px) { .content-area { flex-direction: column; } #mapa { height: 50%; } .panel-empresas { width: 100%; } }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div>📍 GPS Empresas <span id="total-badge">0</span></div>
+            <div class="controls-grid">
+                <input type="text" id="input-busca" class="input-search" placeholder="🔍 Buscar nome ou CNPJ..." oninput="filtrarLista()">
+                <button onclick="alternarGPS()">🛰️ GPS</button>
+            </div>
+        </header>
+        <div class="content-area">
+            <div id="mapa"></div>
+            <aside class="panel-empresas" id="lista-empresas"></aside>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let baseEmpresas = [], mapa, grupoMarcadores = L.layerGroup();
+
+        async function carregarBaseDeDados() {
+            try {
+                const res = await fetch('./dados.json?t=' + new Date().getTime());
+                if (!res.ok) throw new Error("Arquivo não encontrado!");
+                baseEmpresas = await res.json();
+                document.getElementById('total-badge').innerText = baseEmpresas.length;
+                filtrarLista();
+            } catch (e) {
+                console.error("ERRO:", e);
+                document.getElementById('lista-empresas').innerHTML = "Erro ao carregar dados.";
+            }
+        }
+
+        function filtrarLista() {
+            const termo = document.getElementById('input-busca').value.toLowerCase();
+            const lista = document.getElementById('lista-empresas');
+            lista.innerHTML = "";
+            grupoMarcadores.clearLayers();
+
+            const filtradas = baseEmpresas.filter(e =>
+                (e.nome || "").toLowerCase().includes(termo) || 
+                (String(e.cnpj)).includes(termo)
+            );
+
+            document.getElementById('total-badge').innerText = filtradas.length;
+
+            filtradas.forEach(e => {
+                // Ponto no Mapa com todos os dados
+                const marker = L.marker([e.lat, e.lng]).addTo(grupoMarcadores);
+                marker.bindPopup(`
+                    <div style="font-size: 12px; line-height: 1.4;">
+                        <b style="font-size: 14px; color: #1a73e8;">${e.nome}</b><br>
+                        <b>CNPJ:</b> ${e.cnpj}<br>
+                        <b>CNAE:</b> ${e.cnae}<br>
+                        <i style="color: #555;">${e.cnae_descricao || 'Sem descrição'}</i><br>
+                        <b>Endereço:</b> ${e.endereco}<br>
+                        <b>Cidade:</b> ${e.cidade}
+                    </div>
+                `);
+
+                // Card na Lista
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.innerHTML = `
+                    <div class="card-title">${e.nome}</div>
+                    <div class="card-pj">CNPJ: ${e.cnpj}</div>
+                    <div style="font-size: 12px; margin: 5px 0;">
+                        <div style="font-weight:bold;">CNAE: ${e.cnae}</div>
+                        <div style="color: #555;">${e.cnae_descricao || 'Sem descrição'}</div>
+                    </div>
+                    <div style="font-size: 11px; margin-bottom: 8px;">📍 ${e.endereco} - ${e.cidade}</div>
+                    <div style="display: flex; gap: 8px;">
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" target="_blank" 
+                           style="flex:1; background:#1a73e8; color:white; text-decoration:none; padding:6px; border-radius:4px; text-align:center; font-size:11px;">🗺️ Maps</a>
+                        <a href="https://waze.com/ul?ll=${e.lat},${e.lng}&navigate=yes" target="_blank" 
+                           style="flex:1; background:#34a853; color:white; text-decoration:none; padding:6px; border-radius:4px; text-align:center; font-size:11px;">🚗 Waze</a>
+                    </div>
+                `;
+                div.onclick = () => { mapa.setView([e.lat, e.lng], 16); marker.openPopup(); };
+                lista.appendChild(div);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            mapa = L.map('mapa').setView([-12.7, -38.3], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapa);
+            grupoMarcadores.addTo(mapa);
+            carregarBaseDeDados();
+        });
+
+        function alternarGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    mapa.setView([pos.coords.latitude, pos.coords.longitude], 15);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
