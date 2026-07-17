@@ -69,25 +69,29 @@
                 // ... (o restante da renderização dos marcadores e cards permanece igual)
                 const marker = L.marker([e.lat, e.lng]).addTo(grupoMarcadores);
                 marker.bindPopup(`
-                    <div style="font-size:12px">
-                        <b>${e.nome}</b><br>
-                        🏢 PJ: ${e.cnpj}<br>
-                        🏷️ ${e.cnae}<br>
-                        <i>${e.cnae_descricao}</i><br>
-                        📍 ${e.endereco}, ${e.cidade}
-                    </div>
-                `);
+			    <div style="font-size:12px; line-height:1.4;">
+			        <b style="font-size:14px; color:#1a73e8;">${e.nome}</b><br>
+			        🏢 <b>PJ:</b> ${e.cnpj}<br>
+			        🏷️ <b>CNAE:</b> ${e.cnae} - ${e.cnae_descricao}<br>
+			        📍 <b>Endereço:</b> ${e.endereco}, ${e.bairro}, ${e.cidade}
+			    </div>
+			`);
 
-                const div = document.createElement('div');
-                div.className = 'card';
-                div.innerHTML = `
-                    <div class="card-title">${e.nome}</div>
-                    <div style="font-size:11px">CNPJ: ${e.cnpj} | ${e.cidade}</div>
-                    <div style="display:flex; gap:5px; margin-top:8px;">
-                        <a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" style="flex:1; background:#1a73e8; color:white; text-align:center; padding:5px; border-radius:5px; text-decoration:none; font-size:11px;">Maps</a>
-                        <a href="https://waze.com/ul?ll=${e.lat},${e.lng}&navigate=yes" style="flex:1; background:#34a853; color:white; text-align:center; padding:5px; border-radius:5px; text-decoration:none; font-size:11px;">Waze</a>
-                    </div>
-                `;
+			                const div = document.createElement('div');
+			div.className = 'card';
+			div.innerHTML = `
+			    <div class="card-title">${e.nome}</div>
+			    <div style="font-size:11px; color:#666; margin: 4px 0;">
+			        CNPJ: ${e.cnpj} | Bairro: ${e.bairro} | ${e.cidade}
+			    </div>
+			    <div style="font-size: 11px; font-weight: bold; color: #444;">
+			        ${e.cnae}: ${e.cnae_descricao}
+			    </div>
+			    <div style="display:flex; gap:5px; margin-top:8px;">
+			        <a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" style="flex:1; background:#1a73e8; color:white; text-align:center; padding:6px; border-radius:5px; text-decoration:none; font-size:11px;">Maps</a>
+			        <a href="https://waze.com/ul?ll=${e.lat},${e.lng}&navigate=yes" style="flex:1; background:#34a853; color:white; text-align:center; padding:6px; border-radius:5px; text-decoration:none; font-size:11px;">Waze</a>
+			    </div>
+			`;
                 div.onclick = () => { mapa.setView([e.lat, e.lng], 16); marker.openPopup(); };
                 lista.appendChild(div);
             });
