@@ -3,32 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GPS Empresas</title>
+    <title>GPS Empresas - Completo</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body, html { width: 100%; height: 100%; overflow: hidden; }
-        #mapa { width: 100%; height: 100vh; position: absolute; z-index: 1; }
-        .panel-empresas { 
-            position: absolute; bottom: 0; width: 100%; height: 40vh; 
-            background: white; z-index: 1000; border-radius: 20px 20px 0 0;
-            display: flex; flex-direction: column; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        }
-        .drag-handle { width: 40px; height: 5px; background: #ccc; margin: 10px auto; border-radius: 5px; }
-        .lista-scroll { flex: 1; overflow-y: auto; padding: 0 15px 20px; }
-        .card { padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 10px; }
-        .btn-gps { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; padding: 10px; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .leaflet-popup-content { font-size: 13px; line-height: 1.5; }
+        #mapa { width: 100%; height: 100vh; }
+        
+        .ui-top { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 1000; display: flex; gap: 5px; }
+        .input-busca { flex: 1; padding: 12px; border-radius: 25px; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-ui { padding: 10px; background: white; border-radius: 50%; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; }
+        
+        .panel-empresas { position: absolute; bottom: 0; width: 100%; height: 35vh; background: white; z-index: 1000; border-radius: 20px 20px 0 0; display: flex; flex-direction: column; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        .lista-scroll { flex: 1; overflow-y: auto; padding: 15px; }
+        .card { padding: 12px; border-bottom: 1px solid #eee; }
+        .card-title { font-weight: bold; font-size: 14px; }
     </style>
 </head>
 <body>
-    <button class="btn-gps" onclick="pegarLocalizacao()">📍</button>
+    <div class="ui-top">
+        <input type="text" id="input-busca" class="input-busca" placeholder="🔍 Buscar..." oninput="filtrarLista()">
+        <select id="select-cidade" onchange="filtrarLista()" style="padding: 10px; border-radius: 20px; border: none;">
+            <option value="">🏙️ Todas</option>
+            <option value="LAURO DE FREITAS">Lauro de Freitas</option>
+            <option value="CAMAÇARI">Camaçari</option>
+        </select>
+        <button class="btn-ui" onclick="centralizarGPS()">📍</button>
+    </div>
+
     <div id="mapa"></div>
+
     <aside class="panel-empresas">
-        <div class="drag-handle"></div>
-        <div style="padding:0 15px 10px;">
-            <input type="text" id="input-busca" placeholder="🔍 Buscar empresa..." style="width:100%; padding:10px; border-radius:20px; border:1px solid #ddd;" oninput="filtrarLista()">
-        </div>
+        <div style="text-align:center; padding:5px;"><div style="width:40px; height:5px; background:#ccc; border-radius:5px;"></div></div>
         <div class="lista-scroll" id="lista-empresas"></div>
     </aside>
 
@@ -36,7 +42,7 @@
     <script>
         let baseEmpresas = [], mapa, grupoMarcadores = L.layerGroup(), marcadorUsuario;
 
-        async function carregarBaseDeDados() {
+        async function carregarDados() {
             const res = await fetch('./dados.json?t=' + new Date().getTime());
             baseEmpresas = await res.json();
             filtrarLista();
@@ -44,28 +50,34 @@
 
         function filtrarLista() {
             const termo = document.getElementById('input-busca').value.toLowerCase();
+            const cidade = document.getElementById('select-cidade').value;
             const lista = document.getElementById('lista-empresas');
             lista.innerHTML = "";
             grupoMarcadores.clearLayers();
 
-            baseEmpresas.filter(e => (e.nome || "").toLowerCase().includes(termo)).forEach(e => {
-                // Criar o marcador com popup contendo todos os dados
+            baseEmpresas.filter(e => 
+                (e.nome.toLowerCase().includes(termo) || e.cnpj.toString().includes(termo)) &&
+                (cidade === "" || e.cidade.includes(cidade))
+            ).forEach(e => {
                 const marker = L.marker([e.lat, e.lng]).addTo(grupoMarcadores);
                 marker.bindPopup(`
-                    <div style="font-weight:bold">${e.nome}</div>
-                    <div style="font-size:11px">CNPJ: ${e.cnpj}</div>
-                    <div style="font-size:11px">CNAE: ${e.cnae}</div>
-                    <div style="font-size:10px; color:#666">${e.cnae_descricao}</div>
+                    <div style="font-size:12px">
+                        <b>${e.nome}</b><br>
+                        🏢 PJ: ${e.cnpj}<br>
+                        🏷️ ${e.cnae}<br>
+                        <i>${e.cnae_descricao}</i><br>
+                        📍 ${e.endereco}, ${e.cidade}
+                    </div>
                 `);
 
                 const div = document.createElement('div');
                 div.className = 'card';
                 div.innerHTML = `
-                    <div style="font-weight:bold">${e.nome}</div>
-                    <div style="font-size:11px; color:#666">CNPJ: ${e.cnpj} | ${e.cidade}</div>
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" style="flex:1; background:#1a73e8; color:white; text-align:center; padding:8px; border-radius:5px; text-decoration:none; font-size:12px;">Maps</a>
-                        <a href="https://waze.com/ul?ll=${e.lat},${e.lng}&navigate=yes" style="flex:1; background:#34a853; color:white; text-align:center; padding:8px; border-radius:5px; text-decoration:none; font-size:12px;">Waze</a>
+                    <div class="card-title">${e.nome}</div>
+                    <div style="font-size:11px">CNPJ: ${e.cnpj} | ${e.cidade}</div>
+                    <div style="display:flex; gap:5px; margin-top:8px;">
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" style="flex:1; background:#1a73e8; color:white; text-align:center; padding:5px; border-radius:5px; text-decoration:none; font-size:11px;">Maps</a>
+                        <a href="https://waze.com/ul?ll=${e.lat},${e.lng}&navigate=yes" style="flex:1; background:#34a853; color:white; text-align:center; padding:5px; border-radius:5px; text-decoration:none; font-size:11px;">Waze</a>
                     </div>
                 `;
                 div.onclick = () => { mapa.setView([e.lat, e.lng], 16); marker.openPopup(); };
@@ -73,23 +85,20 @@
             });
         }
 
-        function pegarLocalizacao() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    if (marcadorUsuario) mapa.removeLayer(marcadorUsuario);
-                    marcadorUsuario = L.circleMarker([lat, lng], {color: 'blue', radius: 8, fillOpacity: 1}).addTo(mapa);
-                    mapa.setView([lat, lng], 16);
-                });
-            }
+        function centralizarGPS() {
+            navigator.geolocation.getCurrentPosition(pos => {
+                const coords = [pos.coords.latitude, pos.coords.longitude];
+                if (marcadorUsuario) mapa.removeLayer(marcadorUsuario);
+                marcadorUsuario = L.circleMarker(coords, {radius: 8, color: 'blue', fillOpacity: 1}).addTo(mapa);
+                mapa.setView(coords, 16);
+            });
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             mapa = L.map('mapa').setView([-12.7, -38.3], 12);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapa);
             grupoMarcadores.addTo(mapa);
-            carregarBaseDeDados();
+            carregarDados();
         });
     </script>
 </body>
