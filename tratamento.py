@@ -2,16 +2,14 @@ import pandas as pd
 import json
 
 def processar_dados(arquivo_csv, arquivo_saida):
-    # Lendo com o encoding correto e delimitador automático
     df = pd.read_csv(arquivo_csv, encoding='cp1252', sep=None, engine='python')
     
-    # Mapeamento baseado exatamente nos nomes das colunas da sua imagem
+    # Mapeamento ajustado: Razão Social vira o 'nome' principal
     mapeamento = {
-        'Nome Fantasia': 'nome',
-        'Razão Social': 'razao',
+        'Razão Social': 'nome',
         'CNPJ': 'cnpj',
         'Telefones': 'tel',
-        'CNAE Fiscal': 'cnae',
+        'Email': 'email',
         'CNAE Fiscal Descrição': 'cnae_descricao',
         'Município': 'cidade',
         'Bairro': 'bairro',
@@ -22,16 +20,10 @@ def processar_dados(arquivo_csv, arquivo_saida):
     
     df = df.rename(columns=mapeamento)
     
-    # Garantir tratamento de coordenadas (substituir vírgula por ponto)
-    for col in ['lat', 'lng']:
-        if col in df.columns:
-            df[col] = df[col].astype(str).str.replace(',', '.')
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-
-    # Remover linhas sem localização
+    # Limpeza básica
+    df['lat'] = pd.to_numeric(df['lat'].astype(str).str.replace(',', '.'), errors='coerce')
+    df['lng'] = pd.to_numeric(df['lng'].astype(str).str.replace(',', '.'), errors='coerce')
     df = df.dropna(subset=['lat', 'lng'])
-    
-    # Preencher vazios
     df = df.fillna("Não informado")
     
     # Salvar
