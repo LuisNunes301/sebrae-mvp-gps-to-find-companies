@@ -50,15 +50,23 @@
 
         function filtrarLista() {
             const termo = document.getElementById('input-busca').value.toLowerCase();
-            const cidade = document.getElementById('select-cidade').value;
+            const cidadeSelecionada = document.getElementById('select-cidade').value.toUpperCase(); // Padroniza para maiúsculo
             const lista = document.getElementById('lista-empresas');
             lista.innerHTML = "";
             grupoMarcadores.clearLayers();
 
-            baseEmpresas.filter(e => 
-                (e.nome.toLowerCase().includes(termo) || e.cnpj.toString().includes(termo)) &&
-                (cidade === "" || e.cidade.includes(cidade))
-            ).forEach(e => {
+            baseEmpresas.filter(e => {
+                // Busca por nome ou CNPJ
+                const buscaTexto = (e.nome || "").toLowerCase().includes(termo) || (String(e.cnpj)).includes(termo);
+                
+                // Filtro de Município: Verifica se a cidade da empresa contém o texto selecionado
+                // .toUpperCase() garante que "lauro de freitas" encontre "LAURO DE FREITAS"
+                const cidadeEmpresa = (e.cidade || "").toUpperCase();
+                const filtroCidade = cidadeSelecionada === "" || cidadeEmpresa.includes(cidadeSelecionada);
+                
+                return buscaTexto && filtroCidade;
+            }).forEach(e => {
+                // ... (o restante da renderização dos marcadores e cards permanece igual)
                 const marker = L.marker([e.lat, e.lng]).addTo(grupoMarcadores);
                 marker.bindPopup(`
                     <div style="font-size:12px">
