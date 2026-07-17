@@ -9,35 +9,24 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
         body, html { width: 100%; height: 100%; overflow: hidden; }
         #mapa { width: 100%; height: 100vh; position: absolute; z-index: 1; }
-        
-        /* Painel flutuante estilo Google Maps */
         .panel-empresas { 
             position: absolute; bottom: 0; width: 100%; height: 40vh; 
             background: white; z-index: 1000; border-radius: 20px 20px 0 0;
             display: flex; flex-direction: column; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
         }
         .drag-handle { width: 40px; height: 5px; background: #ccc; margin: 10px auto; border-radius: 5px; }
-        .header-painel { padding: 0 15px 10px; }
         .lista-scroll { flex: 1; overflow-y: auto; padding: 0 15px 20px; }
-        
-        .card { padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card { padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 10px; }
         .btn-gps { position: absolute; top: 15px; right: 15px; z-index: 1000; background: white; padding: 10px; border-radius: 50px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        
-        /* Ajuste para PC */
-        @media (min-width: 768px) {
-            .panel-empresas { width: 350px; height: 100vh; border-radius: 0; left: 0; top: 0; }
-            #mapa { left: 350px; width: calc(100% - 350px); }
-        }
+        .leaflet-popup-content { font-size: 13px; line-height: 1.5; }
     </style>
 </head>
 <body>
-    <button class="btn-gps" onclick="alternarGPS()">📍</button>
-    
+    <button class="btn-gps" onclick="pegarLocalizacao()">📍</button>
     <div id="mapa"></div>
-
     <aside class="panel-empresas">
         <div class="drag-handle"></div>
-        <div class="header-painel">
+        <div style="padding:0 15px 10px;">
             <input type="text" id="input-busca" placeholder="🔍 Buscar empresa..." style="width:100%; padding:10px; border-radius:20px; border:1px solid #ddd;" oninput="filtrarLista()">
         </div>
         <div class="lista-scroll" id="lista-empresas"></div>
@@ -45,7 +34,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let baseEmpresas = [], mapa, grupoMarcadores = L.layerGroup();
+        let baseEmpresas = [], mapa, grupoMarcadores = L.layerGroup(), marcadorUsuario;
 
         async function carregarBaseDeDados() {
             const res = await fetch('./dados.json?t=' + new Date().getTime());
@@ -60,8 +49,14 @@
             grupoMarcadores.clearLayers();
 
             baseEmpresas.filter(e => (e.nome || "").toLowerCase().includes(termo)).forEach(e => {
+                // Criar o marcador com popup contendo todos os dados
                 const marker = L.marker([e.lat, e.lng]).addTo(grupoMarcadores);
-                marker.bindPopup(`<b>${e.nome}</b>`);
+                marker.bindPopup(`
+                    <div style="font-weight:bold">${e.nome}</div>
+                    <div style="font-size:11px">CNPJ: ${e.cnpj}</div>
+                    <div style="font-size:11px">CNAE: ${e.cnae}</div>
+                    <div style="font-size:10px; color:#666">${e.cnae_descricao}</div>
+                `);
 
                 const div = document.createElement('div');
                 div.className = 'card';
@@ -78,16 +73,24 @@
             });
         }
 
+        function pegarLocalizacao() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    if (marcadorUsuario) mapa.removeLayer(marcadorUsuario);
+                    marcadorUsuario = L.circleMarker([lat, lng], {color: 'blue', radius: 8, fillOpacity: 1}).addTo(mapa);
+                    mapa.setView([lat, lng], 16);
+                });
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             mapa = L.map('mapa').setView([-12.7, -38.3], 12);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapa);
             grupoMarcadores.addTo(mapa);
             carregarBaseDeDados();
         });
-
-        function alternarGPS() {
-            navigator.geolocation.getCurrentPosition(pos => mapa.setView([pos.coords.latitude, pos.coords.longitude], 16));
-        }
     </script>
 </body>
 </html>
